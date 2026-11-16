@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var h=document.documentElement,t=(/[#,]t=(light|dark)\b/.exec(location.hash)||[])[1]||localStorage.getItem("explainer-theme");if(t==="light"||t==="dark")h.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Explainers</title>
 <style>
 :root {
@@ -510,7 +511,7 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
 
   var site = window.EXPLAINER_SITE.site, pages = window.EXPLAINER_SITE.pages;
   var root = document.documentElement;
-  var THEME_KEY = 'explainer-theme', LANG_KEY = 'explainer-site-lang';
+  var THEME_KEY = 'explainer-theme', LANG_KEY = 'explainer-lang';
 
   var WORDS = {
     en: { toLight: 'Light', toDark: 'Dark', themeLabel: 'Switch between the light and dark theme', min: 'min', demo: { one: 'demo', other: 'demos' }, read: 'read' },
@@ -611,7 +612,10 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
         el('img', { class: 'cover-dark', src: p.slug + '/cover-dark.png', alt: '', loading: 'lazy' }),
       ]) : null;
       var others = el('span', { class: 'card-langs' }, v.slice(main.code === lang ? 1 : 0).map(function (x) {
-        return el('a', { href: x.href, lang: x.code, text: x.label });
+        var a = el('a', { href: x.href, lang: x.code, text: x.label });
+        // Asking for a page in another language is a choice of language for the whole site.
+        a.addEventListener('click', function () { keep(LANG_KEY, x.code); });
+        return a;
       }));
       var bar = el('div', { class: 'card-progress', title: Math.round(read * 100) + '% ' + w.read });
       bar.style.setProperty('--read', Math.round(read * 100) + '%');

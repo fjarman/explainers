@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="alternate" hreflang="ru" href="ru/index.html" title="Русский">
+<script>(function(){try{var h=document.documentElement,t=(/[#,]t=(light|dark)\b/.exec(location.hash)||[])[1]||localStorage.getItem("explainer-theme");if(t==="light"||t==="dark")h.setAttribute("data-theme",t);var w=localStorage.getItem("explainer-lang");if(w&&w!==h.lang){var l=document.querySelector('link[rel="alternate"][hreflang="'+w+'"]');if(l){h.style.visibility="hidden";location.replace(l.getAttribute("href")+location.hash);}}}catch(e){}})();</script>
 <title>How a cell works</title>
 <style>
 :root {
@@ -1483,6 +1484,9 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
   // button in the corner. The pick is kept in localStorage and is also handed to the page in the
   // other language through the link's hash. It is applied here, before anything is drawn.
   const THEME_KEY = 'explainer-theme';
+  // The language the reader last chose, on any page of the site. A language link sets it; the
+  // script build.mjs puts in <head> acts on it; the site's front page reads it too.
+  const LANG_KEY = 'explainer-lang';
   const themeChoice = () => document.documentElement.getAttribute('data-theme');
   function applyTheme(t) {
     if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
@@ -2122,7 +2126,10 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     for (const link of document.querySelectorAll('link[rel="alternate"][hreflang]')) {
       const href = link.getAttribute('href'), code = link.getAttribute('hreflang');
       const a = el('a', { class: 'lang-switch', href, lang: code, text: link.getAttribute('title') || code });
-      a.addEventListener('click', () => { a.href = href + hashNow(); });
+      a.addEventListener('click', () => {
+        try { localStorage.setItem(LANG_KEY, code); } catch (e) { /* storage is blocked: the choice lasts for this visit */ }
+        a.href = href + hashNow();
+      });
       chips.appendChild(a);
     }
     document.body.appendChild(chips);
