@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explainers</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f8f7f3;
+  --ink: #23221f;
+  --ink-2: #5a5852;
+  --muted: #8f8c84;
+  --grid: #e3e1d9;
+  --axis: #c6c3b8;
+  --wash: #efede7;
+  /* Shading: the highlight and shadow of drawn spheres, pale beads, raised controls. */
+  --hi: #ffffff;
+  --shade: #2b2540;
+  --bead-hi: #ffffff;
+  --bead-lo: #d9d6cc;
+  --lift: #ffffff;
+  --knob: #7c848c;
+  --c-blue: #3b82de;
+  --c-orange: #f07f2e;
+  --c-aqua: #1fae8b;
+  --c-yellow: #e9a400;
+  --c-magenta: #e0719f;
+  --c-green: #4e9f2a;
+  --c-violet: #7563df;
+  --c-red: #e24e4a;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Dark colours: when the system asks for them and the reader has not picked the light theme,
+   or when the reader picked the dark theme with the button in the corner. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #19191b;
+    --ink: #edece8;
+    --ink-2: #bdbbb2;
+    --muted: #85837c;
+    --grid: #2d2d2e;
+    --axis: #3f3e3d;
+    --wash: #262627;
+    --hi: #ffffff;
+    --shade: #000000;
+    --bead-hi: #9a9995;
+    --bead-lo: #4c4c4d;
+    --lift: #3b3b3d;
+    --knob: #9aa1a8;
+    --c-blue: #5a9cf2;
+    --c-orange: #f08b47;
+    --c-aqua: #33bf99;
+    --c-yellow: #d9a520;
+    --c-magenta: #e27aa8;
+    --c-green: #6dbb48;
+    --c-violet: #9d8ff5;
+    --c-red: #ee6b68;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #19191b;
+  --ink: #edece8;
+  --ink-2: #bdbbb2;
+  --muted: #85837c;
+  --grid: #2d2d2e;
+  --axis: #3f3e3d;
+  --wash: #262627;
+  --hi: #ffffff;
+  --shade: #000000;
+  --bead-hi: #9a9995;
+  --bead-lo: #4c4c4d;
+  --lift: #3b3b3d;
+  --knob: #9aa1a8;
+  --c-blue: #5a9cf2;
+  --c-orange: #f08b47;
+  --c-aqua: #33bf99;
+  --c-yellow: #d9a520;
+  --c-magenta: #e27aa8;
+  --c-green: #6dbb48;
+  --c-violet: #9d8ff5;
+  --c-red: #ee6b68;
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body.explainer {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 19px/1.65 var(--font);
+  overflow-x: hidden;
+}
+
+.explainer main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 56px 20px 140px;
+}
+
+.explainer h1 {
+  font-size: 2.5rem;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5em;
+}
+
+.explainer h2 {
+  font-size: 1.65rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 2.8em 0 0.6em;
+}
+
+.explainer h3 { font-size: 1.15rem; margin: 2em 0 0.4em; }
+.explainer p { margin: 0 0 1.1em; }
+.explainer a { color: inherit; text-decoration-color: var(--axis); text-underline-offset: 3px; }
+.explainer a:hover { text-decoration-color: currentColor; }
+.explainer strong { font-weight: 650; }
+.explainer ul, .explainer ol { padding-left: 1.3em; margin: 0 0 1.1em; }
+.explainer li { margin-bottom: 0.4em; }
+.explainer .aside { color: var(--ink-2); font-size: 0.92em; }
+
+.explainer code {
+  font: 0.86em var(--mono);
+  background: var(--wash);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.explainer pre.code {
+  font: 14px/1.55 var(--mono);
+  background: var(--wash);
+  padding: 14px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0 0 1.2em;
+}
+
+.explainer pre.code code { background: none; padding: 0; font: inherit; }
+.explainer pre.code .hl { display: inline-block; width: 100%; background: color-mix(in srgb, var(--c-yellow) 26%, transparent); }
+
+/* Words that name something drawn in a demo wear that thing's colour. */
+.explainer [class*="role-"] {
+  font-weight: 650;
+  color: color-mix(in srgb, var(--c) 80%, var(--ink));
+}
+
+/* Fixed chips in the corner: the colour theme, and the link to the page in the other language. */
+.explainer .page-switches {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+}
+.explainer .page-switches > * {
+  margin: 0;
+  padding: 3px 11px;
+  border: 1px solid var(--axis);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+}
+.explainer .page-switches > *:hover { color: var(--ink); border-color: var(--ink-2); }
+
+/* Shown for a few seconds when the page returns to the place the reader left. */
+.explainer .resume-note {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px 8px 16px;
+  border: 1px solid var(--axis);
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--shade) 22%, transparent);
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+.explainer .resume-note button {
+  flex: none;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--wash);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.explainer .resume-note button:hover { background: var(--grid); }
+
+.explainer a.act {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-decoration-color: currentColor;
+}
+
+/* Figures are wider than the text column: min(860px, viewport - 32px), centred on it. */
+figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
+
+.demo .stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+/* A DOM stage grows with its content; the ratio is only its minimum. */
+.demo .stage.dom { overflow: visible; }
+.demo .stage.draggable { cursor: grab; }
+.demo .stage.dragging { cursor: grabbing; }
+
+.demo canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.demo .note {
+  margin: 12px auto 0;
+  max-width: 700px;
+  text-wrap: balance;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  min-height: 1.4em;
+}
+
+.demo figcaption {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.demo .controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px 26px;
+  margin: 16px auto 0;
+  max-width: 700px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.demo .control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  min-width: 0;
+  max-width: 100%;
+  --accent: var(--knob);
+}
+
+.demo .control.slider, .demo .control.stepper { flex: 1 1 300px; }
+.demo .control .label { color: var(--ink-2); white-space: nowrap; }
+.demo .control output { min-width: 4.5em; font-variant-numeric: tabular-nums; font-weight: 550; color: var(--ink); }
+.demo .control.stepper output { min-width: 3.4em; text-align: right; font-weight: 400; color: var(--ink-2); }
+
+/* Sliders: a thin track tinted with the control's colour and a large round knob. */
+.demo input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  /* Basis and width are set low on purpose: a range input's default 129px width does not shrink. */
+  flex: 1 1 60px;
+  width: 60px;
+  min-width: 60px;
+  height: 32px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  --track: color-mix(in srgb, var(--accent) 24%, var(--grid));
+  --knob-shadow: 0 1px 3px color-mix(in srgb, var(--shade) 34%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--shade) 16%, transparent);
+}
+
+.demo input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--p, 0%), var(--track) var(--p, 0%));
+}
+
+.demo input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 0;
+  box-shadow: var(--knob-shadow);
+  transition: transform 0.12s ease;
+}
+
+.demo input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.08); }
+.demo input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.16); }
+.demo input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--track); }
+.demo input[type="range"]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+
+.demo input[type="range"]::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 0;
+  box-shadow: var(--knob-shadow);
+}
+
+.demo input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+.demo button {
+  font: inherit;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--wash);
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 16px;
+  min-height: 36px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+
+.demo button:hover { background: var(--grid); }
+.demo button:active { transform: scale(0.97); }
+.demo button:disabled { opacity: 0.4; cursor: default; transform: none; }
+.demo button:disabled:hover { background: var(--wash); }
+.demo button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* A choice between a few options: a tray with the chosen option raised. */
+.demo .segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 20px;
+  background: var(--wash);
+}
+.demo .segmented button { min-height: 30px; padding: 4px 14px; background: transparent; color: var(--ink-2); }
+.demo .segmented button:hover { background: transparent; color: var(--ink); }
+.demo .segmented button[aria-pressed="true"] {
+  background: var(--lift);
+  color: var(--ink);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--shade) 26%, transparent);
+}
+
+/* An on/off control: a switch. */
+.demo .control.toggle label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.demo .control.toggle input {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 24px;
+  margin: 0;
+  border-radius: 12px;
+  background: var(--axis);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.demo .control.toggle input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--hi);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shade) 40%, transparent);
+  transition: transform 0.15s ease;
+}
+.demo .control.toggle input:checked { background: var(--accent); }
+.demo .control.toggle input:checked::after { transform: translateX(16px); }
+.demo .control.toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.demo.missing .placeholder, .demo .demo-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border: 2px dashed var(--axis);
+  border-radius: 10px;
+  color: var(--muted);
+  font: 14px var(--mono);
+}
+
+.demo .demo-error { position: absolute; inset: 0; aspect-ratio: auto; }
+
+@media (max-width: 560px) {
+  body.explainer { font-size: 17px; }
+  .explainer main { padding: 36px 18px 100px; }
+  .explainer h1 { font-size: 2rem; }
+  .explainer h2 { font-size: 1.4rem; }
+  .demo .controls { gap: 6px 14px; }
+  .demo .control.slider, .demo .control.stepper { flex-basis: 100%; }
+  /* On a phone a slider takes two lines: label and value, then a full-width track. */
+  .demo .control.slider { flex-wrap: wrap; gap: 0 10px; }
+  .demo .control.slider .label { flex: 1 1 auto; white-space: normal; }
+  .demo .control.slider output { min-width: 0; text-align: right; }
+  .demo .control.slider input[type="range"] { order: 3; flex: 1 0 100%; }
+  .demo .control.stepper .label { display: none; }
+}
+
+/* The front page of a site of explainers (scripts/site.mjs). It follows explainer.css, which
+   supplies the palette, the type and the corner chips. */
+:root { --card: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --card: #242426; }
+}
+:root[data-theme="dark"] { --card: #242426; }
+
+.explainer.site main { max-width: 1040px; padding-top: 72px; }
+.site .site-intro { max-width: 640px; margin: 0 0 2.4rem; color: var(--ink-2); }
+.site .site-intro:empty { display: none; }
+
+.site .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 28px; }
+
+.site .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shade) 10%, transparent), 0 6px 20px color-mix(in srgb, var(--shade) 9%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.site .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shade) 12%, transparent), 0 12px 30px color-mix(in srgb, var(--shade) 14%, transparent);
+}
+
+.site .card-main { display: flex; flex: 1; flex-direction: column; color: inherit; text-decoration: none; }
+/* The whole card is the link's target, the links in its foot excepted. */
+.site .card-main::after { content: ""; position: absolute; inset: 0; }
+.site .card-cover { display: block; aspect-ratio: 16 / 9; overflow: hidden; background: var(--bg); border-bottom: 1px solid var(--grid); }
+.site .card-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.site .cover-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .site .cover-light { display: none; }
+  :root:not([data-theme="light"]) .site .cover-dark { display: block; }
+}
+:root[data-theme="dark"] .site .cover-light { display: none; }
+:root[data-theme="dark"] .site .cover-dark { display: block; }
+
+.site .card-date { margin: 18px 22px 0; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--muted); }
+.site .card-title { margin: 6px 22px 0; font-size: 1.35rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; }
+.site .card-text { margin: 9px 22px 0; font-size: 0.95rem; line-height: 1.5; color: var(--ink-2); }
+
+.site .card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 16px 22px 18px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.site .card-langs { position: relative; z-index: 1; }
+.site .card-langs a { margin-left: 12px; color: var(--ink-2); }
+.site .card-langs a:first-child { margin-left: 0; }
+
+/* How far the reader got on their last visit, from the place the page keeps in localStorage. */
+.site .card-progress { height: 4px; background: linear-gradient(to right, var(--c-blue) var(--read, 0%), var(--grid) var(--read, 0%)); }
+.site .card-progress[hidden] { display: none; }
+
+.site .page-switches button.lang-switch { font-size: 0.8rem; }
+</style>
+</head>
+<body class="explainer site">
+<main>
+<h1 id="site-title">Explainers</h1>
+<p id="site-intro" class="site-intro">Long interactive articles that build a subject up from nothing, one demo at a time.</p>
+<div id="cards" class="cards"></div>
+<noscript><ul><li><a href="how-cells-work/index.html">How a cell works</a> (2026-11-16)</li></ul></noscript>
+</main>
+<script>window.EXPLAINER_SITE = {"site":{"title":"Explainers","intro":"Long interactive articles that build a subject up from nothing, one demo at a time.","lang":"en","label":"English","languages":{"ru":{"label":"Русский","title":"Объяснения","intro":"Длинные интерактивные статьи: тема собирается с нуля, шаг за шагом, с демонстрациями."}}},"pages":[{"slug":"how-cells-work","published":"2026-11-16","lang":"en","label":"English","title":"How a cell works","description":"From jiggling molecules to a body of trillions of cells: where a cell gets its energy, how it builds proteins and copies itself, and why it needs so many parts. Told in the order evolution built them.","minutes":119,"demos":105,"translations":{"ru":{"label":"Русский","title":"Как работает клетка","description":"От дрожащих молекул до тела из триллионов клеток: откуда клетка берёт энергию, как она строит белки и копирует себя и зачем ей столько частей. В том порядке, в каком всё это создавала эволюция."}},"cover":true}]};</script>
+<script>
+/* Front page of a site of explainers: cards drawn from the data that scripts/site.mjs embeds. */
+(function () {
+  'use strict';
+
+  var site = window.EXPLAINER_SITE.site, pages = window.EXPLAINER_SITE.pages;
+  var root = document.documentElement;
+  var THEME_KEY = 'explainer-theme', LANG_KEY = 'explainer-site-lang';
+
+  var WORDS = {
+    en: { toLight: 'Light', toDark: 'Dark', themeLabel: 'Switch between the light and dark theme', min: 'min', demo: { one: 'demo', other: 'demos' }, read: 'read' },
+    ru: { toLight: 'Светлая', toDark: 'Тёмная', themeLabel: 'Переключить светлую и тёмную тему', min: 'мин', demo: { one: 'демонстрация', few: 'демонстрации', many: 'демонстраций', other: 'демонстрации' }, read: 'прочитано' },
+  };
+
+  function kept(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function keep(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage is blocked */ } }
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag), k;
+    for (k in attrs || {}) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+
+  // The theme the reader picked on any page of the site.
+  var picked = kept(THEME_KEY);
+  if (picked === 'light' || picked === 'dark') root.setAttribute('data-theme', picked);
+
+  // Languages: the front page's own, and every language some explainer exists in.
+  var labels = {};
+  labels[site.lang] = site.label || site.lang;
+  Object.keys(site.languages || {}).forEach(function (c) { labels[c] = site.languages[c].label || c; });
+  pages.forEach(function (p) {
+    if (!labels[p.lang]) labels[p.lang] = p.label || p.lang;
+    Object.keys(p.translations).forEach(function (c) { if (!labels[c]) labels[c] = p.translations[c].label || c; });
+  });
+  var codes = Object.keys(labels);
+
+  function firstChoice() {
+    var k = kept(LANG_KEY);
+    if (k && labels[k]) return k;
+    var wanted = navigator.languages || [navigator.language || ''];
+    for (var i = 0; i < wanted.length; i++) {
+      var c = String(wanted[i]).toLowerCase().split('-')[0];
+      if (labels[c]) return c;
+    }
+    return site.lang;
+  }
+  var lang = firstChoice();
+
+  function words() {
+    var t = (site.languages || {})[lang] || {};
+    var w = {}, base = WORDS[lang] || WORDS.en, k;
+    for (k in WORDS.en) w[k] = base[k] || WORDS.en[k];
+    for (k in t.ui || {}) w[k] = t.ui[k];
+    return w;
+  }
+
+  function plural(n, forms) {
+    var rule = 'other';
+    try { rule = new Intl.PluralRules(lang).select(n); } catch (e) { rule = n === 1 ? 'one' : 'other'; }
+    return forms[rule] || forms.other;
+  }
+
+  function dateText(iso) {
+    var p = iso.split('-');
+    try { return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(lang, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (e) { return iso; }
+  }
+
+  // Every version of a page: { code, label, title, description, href }, the one in `lang` first.
+  // Links name index.html, so the site also works opened from a folder on disk.
+  function versions(p) {
+    var list = [{ code: p.lang, label: p.label, title: p.title, description: p.description, href: p.slug + '/index.html' }];
+    Object.keys(p.translations).forEach(function (c) {
+      var t = p.translations[c];
+      list.push({ code: c, label: t.label, title: t.title, description: t.description || p.description, href: p.slug + '/' + c + '/index.html' });
+    });
+    list.sort(function (a, b) { return (b.code === lang) - (a.code === lang); });
+    return list;
+  }
+
+  function progress(href) {
+    try {
+      var v = JSON.parse(kept('explainer-place:' + new URL(href, location.href).pathname.replace(/index\.html$/, '')) || 'null');
+      return v && v.read > 0 ? Math.min(1, v.read) : 0;
+    } catch (e) { return 0; }
+  }
+
+  function render() {
+    var w = words(), t = (site.languages || {})[lang] || {};
+    root.lang = lang;
+    document.title = t.title || site.title;
+    document.getElementById('site-title').textContent = t.title || site.title;
+    document.getElementById('site-intro').textContent = t.intro || site.intro || '';
+
+    var cards = document.getElementById('cards');
+    cards.textContent = '';
+    pages.forEach(function (p) {
+      var v = versions(p), main = v[0];
+      var read = Math.max.apply(null, v.map(function (x) { return progress(x.href); }));
+      var cover = p.cover ? el('span', { class: 'card-cover' }, [
+        el('img', { class: 'cover-light', src: p.slug + '/cover.png', alt: '', loading: 'lazy' }),
+        el('img', { class: 'cover-dark', src: p.slug + '/cover-dark.png', alt: '', loading: 'lazy' }),
+      ]) : null;
+      var others = el('span', { class: 'card-langs' }, v.slice(main.code === lang ? 1 : 0).map(function (x) {
+        return el('a', { href: x.href, lang: x.code, text: x.label });
+      }));
+      var bar = el('div', { class: 'card-progress', title: Math.round(read * 100) + '% ' + w.read });
+      bar.style.setProperty('--read', Math.round(read * 100) + '%');
+      if (!read) bar.hidden = true;
+      cards.appendChild(el('article', { class: 'card' }, [
+        el('a', { class: 'card-main', href: main.href, lang: main.code }, [
+          cover,
+          el('time', { class: 'card-date', datetime: p.published, text: dateText(p.published) }),
+          el('span', { class: 'card-title', text: main.title }),
+          main.description ? el('span', { class: 'card-text', text: main.description }) : null,
+        ]),
+        el('div', { class: 'card-foot' }, [
+          el('span', { class: 'card-meta', text: p.minutes + ' ' + w.min + ' · ' + p.demos + ' ' + plural(p.demos, w.demo) + (read ? ' · ' + Math.round(read * 100) + '% ' + w.read : '') }),
+          others,
+        ]),
+        bar,
+      ]));
+    });
+
+    var old = document.querySelector('.page-switches');
+    if (old) old.remove();
+    var system = matchMedia('(prefers-color-scheme: dark)');
+    var dark = (root.getAttribute('data-theme') || (system.matches ? 'dark' : 'light')) === 'dark';
+    var theme = el('button', { type: 'button', class: 'theme-switch', 'aria-label': w.themeLabel, text: dark ? w.toLight : w.toDark });
+    theme.addEventListener('click', function () {
+      var next = dark ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      keep(THEME_KEY, next);
+      render();
+    });
+    var chips = el('div', { class: 'page-switches' }, [theme]);
+    codes.forEach(function (c) {
+      if (c === lang) return;
+      var b = el('button', { type: 'button', class: 'lang-switch', lang: c, text: labels[c] });
+      b.addEventListener('click', function () { lang = c; keep(LANG_KEY, c); render(); });
+      chips.appendChild(b);
+    });
+    document.body.appendChild(chips);
+  }
+
+  render();
+  // Coming back from an explainer with the Back button: show the new place.
+  addEventListener('pageshow', function (e) { if (e.persisted) render(); });
+})();
+
+</script>
+</body>
+</html>
