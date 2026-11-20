@@ -4438,11 +4438,13 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     { mode: 'outline' },
     { light: 'off' },
     { tex: 'correct', filter: 'bilinear', light: 'vertex', shine: 0 },
-    { tex: 'correct', filter: 'bilinear', light: 'pixel', shadow: { size: 64 } },
+    { tex: 'correct', filter: 'bilinear', light: 'pixel', shadow: { size: 64, bias: 0.35 } },   // 0.15 leaves dots on the crate and ball as the lamp swings
   ];
   const ALL = 96 * 72;
   const QUARTER = [[-0.25, -0.25], [0.25, 0.25], [0.25, -0.25], [-0.25, 0.25]];
   const KEEP = 0.2;          // each frame enters the kept picture at 0.2 (H39)
+  const MOVED = 0.6;         // while the camera turns, most of the kept picture is replaced
+  const SWING = 0.6;
   const BUDGET = 150000;     // tests per frame for the picture on screen
   const BACKGROUND = 60000;  // tests per frame for the bills of the ways not on screen
 
@@ -4452,8 +4454,9 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
 
     let swing = 0, turn = 0, lamp = 0;
     let paintKey = '';
-    let pic = null;                 // what the screen shows
+    let pic = null;                 // what the screen shows: always a complete picture
     let job = null, seed = 1, pass = 0, jobEra = -1, jobView = '', since = 0;
+    let front = null, spare = null; // the ray picture is worked in a spare buffer and shown when whole
     const hist = { full: kit.buffer(96, 72) };
     const bills = new Array(7).fill(null);
     let ladder = null;              // the traced ways' bills at the starting view, worked out in the background
@@ -4461,16 +4464,18 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     const camOf = () => (turn ? { turn: Math.round(turn * 1000) / 1000 } : null);
     const view = () => ({ lamp: Math.round(lamp * 1000) / 1000, cam: camOf() });
 
-    function reset() { job = null; since = 0; pic = null; jobEra = -1; jobView = ''; }
-    era.onChange(reset);
+    // A new way keeps the old picture on the screen until it has one of its own.
+    function leave() { job = null; jobEra = -1; }
+    function recolour() { leave(); pic = null; front = spare = null; }
+    era.onChange(leave);
 
     d.pointer({ axis: 'x', drag: (p, dd) => { turn = clamp(turn + dd.x * 0.006, -1.2, 1.2); } });
 
-    // A traced frame arrives row by row; each row is blended into the kept picture as it lands.
-    // After a fresh start a pixel's first few samples are averaged plainly, then each new one
-    // enters at KEEP.
+    // A path-traced frame arrives row by row; each row is blended into the kept picture as it
+    // lands. The kept picture starts as whatever was on the screen, so a new frame enters at KEEP
+    // from the first. After the camera has turned, new frames enter faster for a while.
     function blendRow(y, j, quarter) {
-      const H = hist.full.color, src = j.color, n = quarter ? Math.floor(j.since / 4) : j.since, a = Math.max(KEEP, 1 / (n + 1));
+      const H = hist.full.color, src = j.color, a = j.keep;
       if (!quarter) {
         for (let i = y * 96 * 3, e = i + 96 * 3; i < e; i++) H[i] += (src[i] - H[i]) * a;
       } else {
@@ -4478,8 +4483,8 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
         for (let X = 0; X < 48; X++) {
           const s = 3 * (y * 48 + X);
           for (let by = 0; by < 2; by++) for (let bx = 0; bx < 2; bx++) {
-            // a fresh start fills the whole 2 x 2 block; after that each sample feeds its own pixel
-            if (j.since > 0 && (bx !== ox || by !== oy)) continue;
+            // a turned camera fills the whole 2 x 2 block; otherwise each sample feeds its own pixel
+            if (!j.whole && (bx !== ox || by !== oy)) continue;
             const t = 3 * ((2 * y + by) * 96 + 2 * X + bx);
             for (let k = 0; k < 3; k++) H[t + k] += (src[s + k] - H[t + k]) * a;
           }
@@ -4490,26 +4495,34 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
 
     function startJob(e, P) {
       const v = view(), key = JSON.stringify(camOf());
-      if (key !== jobView) since = 0;
-      jobView = key;
-      jobEra = e;
       if (e === 4) {
-        job = kit.trace({ paints: P, scene: v, mode: 'mirror', into: job && job.w === 96 && job.mode === 'mirror' ? job : null });
-      } else if (e === 5) {
-        job = kit.trace({ paints: P, scene: v, mode: 'path', spp: 1, seed: seed++, onRow: (y, j) => blendRow(y, j, false) });
+        job = kit.trace({ paints: P, scene: v, mode: 'mirror', into: spare });
+        return;
+      }
+      if (jobEra !== e) {
+        // entering a path way: its kept picture is the picture on the screen
+        if (pic !== hist.full) { hist.full.color.set(pic.color); hist.full.version++; }
+        since = 16;
+      } else if (key !== jobView) since = 0;
+      jobView = key;
+      const quarter = e === 6, n = quarter ? Math.floor(since / 4) : since;
+      if (!quarter) {
+        job = kit.trace({ paints: P, scene: v, mode: 'path', spp: 1, seed: seed++, clamp: 1, onRow: (y, j) => blendRow(y, j, false) });
       } else {
         const shift = QUARTER[pass++ % 4];
-        job = kit.trace({ paints: P, scene: v, mode: 'path', spp: 1, seed: seed++, w: 48, h: 36, jitter: shift, onRow: (y, j) => blendRow(y, j, true) });
+        job = kit.trace({ paints: P, scene: v, mode: 'path', spp: 1, seed: seed++, clamp: 1, w: 48, h: 36, jitter: shift, onRow: (y, j) => blendRow(y, j, true) });
         job.shift = shift;
       }
-      job.since = since++;
+      job.keep = Math.min(MOVED, Math.max(KEEP, 1 / (n + 1)));
+      job.whole = quarter && since === 0;
+      since++;
     }
 
     d.animate((dt) => {
       if (run.value) swing += dt;
-      lamp = 0.8 * Math.sin(swing * 0.42);
+      lamp = SWING * Math.sin(swing * 0.42);
       const P = kit.paints(d);
-      if (P.key !== paintKey) { paintKey = P.key; reset(); ladder = null; }
+      if (P.key !== paintKey) { paintKey = P.key; recolour(); ladder = null; }
       const e = era.value;
 
       if (!ladder) {
@@ -4527,14 +4540,18 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
       if (e <= 3) {
         pic = kit.picture(d, Object.assign({ scene: view() }, RASTER[e]));
         bills[e] = pic.counts.bill;
+        leave();
         return;
       }
-      if (!job || jobEra !== e) startJob(e, P);
+      // nothing on the screen yet: start from the rasterised picture, never from an empty one
+      if (!pic) pic = kit.picture(d, Object.assign({ scene: view() }, RASTER[3]));
+      if (!job || jobEra !== e) { startJob(e, P); jobEra = e; }
+      if (e > 4) pic = hist.full;
       if (job.step(BUDGET)) {
         bills[e] = job.counts.bill;
+        if (e === 4) { spare = front; front = job; pic = front; }
         startJob(e, P);
       }
-      pic = e === 4 ? job : hist.full;
     });
 
     // Wide: the screen, and beside it the bills and the pixels meter. Narrow: the screen as large
