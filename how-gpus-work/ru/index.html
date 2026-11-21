@@ -457,7 +457,8 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
 <p>У хорошего игрового экрана сегодня 8&nbsp;294&nbsp;400&nbsp;пикселей, и он может показывать 240&nbsp;картинок в секунду. Это два миллиарда пикселей в секунду, причём в самом требовательном режиме игры цвет каждого из них получают, прослеживая лучи света по комнате. Двадцать лет назад на вычисления такого рода компьютеры киностудии тратили часы ради одной-единственной картинки. Эта страница&nbsp;— о машине, которая с этим справляется, о видеокарте, и о том, как много в этом подвиге держится на умении его не совершать.</p>
 <p>Ниже&nbsp;— маленькая сцена: пол, ящик, шар и лампа, на экране 96 на 72&nbsp;пикселя, который останется с нами до конца. Ползунок перерисовывает её так, как умела каждая эпоха графики: от новейшего способа справа и <a class="act" data-act="hero-scene" data-set="era=0">до самого начала</a>, до голых отрезков. Потяните картинку, чтобы повернуть камеру, и следите за столбиками рядом: они считают малые вычисления, которых требует каждый кадр (по одному на каждый перемещённый угол, каждый проверенный пиксель, каждый прослеженный луч):</p>
 <figure class="demo" data-demo="hero-scene" data-ratio="16:9"></figure>
-<p>Если двигать ползунок влево, картинка по очереди теряет мягкие тени, отражения, затем тени и блики вообще, текстуры и, наконец, поверхности. Если вправо, каждый шаг делает её правдивее, и каждый обходится дороже: 174&nbsp;вычисления для отрезков, около 52&nbsp;тысяч, когда свет и тени рассчитаны в каждом пикселе, около 550&nbsp;тысяч, когда прослеживаются лучи, и около 865&nbsp;тысяч для путей. Только последний шаг идёт в обратную сторону. Он рассчитывает четверть пикселей, остальные восстанавливает и снова опускает счёт за кадр до 200&nbsp;тысяч с небольшим.</p>
+<p>Если двигать ползунок влево, картинка сначала покрывается шумом, а затем по очереди теряет мягкие тени, отражения, затем тени и блики вообще, текстуры и, наконец, поверхности.</p>
+<p>Если вправо, каждый шаг делает её лучше, и каждый обходится дороже: 174&nbsp;вычисления для отрезков, около 52&nbsp;тысяч, когда свет и тени рассчитаны в каждом пикселе, около 550&nbsp;тысяч, когда прослеживаются лучи, около 865&nbsp;тысяч для путей и ещё около 60&nbsp;тысяч, чтобы убрать с них шум. Только последний шаг идёт в обратную сторону. Он рассчитывает четверть пикселей, остальные восстанавливает и снова опускает счёт за кадр ниже 300&nbsp;тысяч.</p>
 <p>В этом ползунке спрятано пятьдесят лет работы, и сделана она в три хода. Сначала люди нашли вычисления, из которых получается картинка. Потом построили аппаратуру, которая выполняет эти вычисления быстрее и, главное, одновременно. А в последние годы нашли способы большую часть вычислений не делать вовсе. Мы пройдём эти шаги в том порядке, в каком людям пришлось их изобретать, а сцена и экран останутся с нами на всём пути, с несколькими небольшими изменениями, на которые я укажу.</p>
 <p>Эта страница опирается на две предыдущие. <a href="../../how-cpus-work/ru/index.html">«Как работает процессор»</a> объясняет команды, такт, кэши, конвейер и ядра процессора; <a href="../../how-operating-systems-work/ru/index.html">«Как работает операционная система»</a>&nbsp;— ядро системы, системные вызовы, прерывания и драйверы. Если эти слова вам в новинку, начните с них.</p>
 <p>Но прежде всего нам нужен экран, на котором ничего нет.</p>
@@ -4453,7 +4454,7 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
   const { clamp } = Explainer.util;
   const kit = Explainer.kit;
 
-  // The seven ways, in the order history found them. Ways 0 to 3 rasterise, 4 to 6 trace.
+  // The eight ways, in the order history found them. Ways 0 to 3 rasterise, 4 to 7 trace.
   const NAMES = () => [
     tr('lines', 'отрезки'),
     tr('flat triangles', 'одноцветные треугольники'),
@@ -4461,6 +4462,7 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     tr('light at every pixel, 2004', 'свет в каждом пикселе, 2004'),
     tr('rays, 2018', 'лучи, 2018'),
     tr('paths, 2019', 'пути, 2019'),
+    tr('paths, noise removed', 'пути, шум убран'),
     tr('a quarter of the pixels, 2023', 'четверть пикселей, 2023'),
   ];
   const NOTES = () => [
@@ -4470,7 +4472,8 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     tr('Light worked out at every pixel, with a highlight and shadows', 'Свет рассчитан в каждом пикселе, с бликом и тенями'),
     tr('Rays from the camera, on to the lamp and off the ball', 'Лучи из камеры, дальше к лампе и отражённые от шара'),
     tr('One random path of light per pixel each frame, blended with the frames before', 'Один случайный путь света на пиксель за кадр, смешанный с прежними кадрами'),
-    tr('A quarter of the pixels worked out each frame; the rest rebuilt from earlier frames', 'За кадр рассчитана четверть пикселей; остальные восстановлены из прежних кадров'),
+    tr('The same paths; then each pixel\'s light is averaged with its neighbours on the same surface', 'Те же пути; затем свет каждого пикселя усреднён с соседями на той же поверхности'),
+    tr('A quarter of the pixels worked out each frame; the rest rebuilt from earlier frames, then the noise removed', 'За кадр рассчитана четверть пикселей; остальные восстановлены из прежних кадров, затем убран шум'),
   ];
   const RASTER = [
     { mode: 'outline' },
@@ -4478,7 +4481,11 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     { tex: 'correct', filter: 'bilinear', light: 'vertex', shine: 0 },
     { tex: 'correct', filter: 'bilinear', light: 'pixel', shadow: { size: 64, bias: 0.35 } },   // 0.15 leaves dots on the crate and ball as the lamp swings
   ];
-  const ALL = 96 * 72;
+  const ALL = 96 * 72, WAYS = 8, LAST = WAYS - 1;
+  // what a way's picture is made by: ways 5 and 6 share their paths, and way 6 only smooths them
+  const KIND = ['', '', '', '', 'rays', 'paths', 'paths', 'quarter'];
+  // the smoothing: seven neighbours along the row, then seven along the column (H40)
+  const REACH = 3, FALL = [1, 0.8, 0.41, 0.135], SAME = 0.8, FLOOR = 0.05;
   const QUARTER = [[-0.25, -0.25], [0.25, 0.25], [0.25, -0.25], [-0.25, 0.25]];
   const KEEP = 0.2;          // each frame enters the kept picture at 0.2 (H39)
   const MOVED = 0.6;         // while the camera turns, most of the kept picture is replaced
@@ -4487,25 +4494,27 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
   const BACKGROUND = 60000;  // tests per frame for the bills of the ways not on screen
 
   Explainer.demo('hero-scene', (d) => {
-    const era = d.slider({ id: 'era', label: tr('Drawn the way of', 'Способ рисования'), min: 0, max: 6, step: 1, value: 6, format: (v) => NAMES()[v] });
+    const era = d.slider({ id: 'era', label: tr('Drawn the way of', 'Способ рисования'), min: 0, max: LAST, step: 1, value: LAST, format: (v) => NAMES()[v] });
     const run = d.toggle({ id: 'run', label: tr('Swing the lamp', 'Качать лампу'), value: true });
 
     let swing = 0, turn = 0, lamp = 0;
     let paintKey = '';
     let pic = null;                 // what the screen shows: always a complete picture
-    let job = null, seed = 1, pass = 0, jobEra = -1, jobView = '', since = 0;
+    let job = null, seed = 1, pass = 0, jobKind = '', jobView = '', since = 0;
     let front = null, spare = null; // the ray picture is worked in a spare buffer and shown when whole
     const hist = { full: kit.buffer(96, 72) };
-    const bills = new Array(7).fill(null);
+    const clean = kit.buffer(96, 72), lightA = new Float32Array(ALL * 3), lightB = new Float32Array(ALL * 3);
+    let taps = 0;                   // sums the smoothing took on the picture now shown
+    const bills = new Array(WAYS).fill(null);
     let ladder = null;              // the traced ways' bills at the starting view, worked out in the background
 
     const camOf = () => (turn ? { turn: Math.round(turn * 1000) / 1000 } : null);
     const view = () => ({ lamp: Math.round(lamp * 1000) / 1000, cam: camOf() });
 
     // A new way keeps the old picture on the screen until it has one of its own.
-    function leave() { job = null; jobEra = -1; }
+    function leave() { job = null; jobKind = ''; }
     function recolour() { leave(); pic = null; front = spare = null; }
-    era.onChange(leave);
+    era.onChange((v) => { if (KIND[v] !== jobKind) leave(); });   // ways 5 and 6 share one kept picture
 
     d.pointer({ axis: 'x', drag: (p, dd) => { turn = clamp(turn + dd.x * 0.006, -1.2, 1.2); } });
 
@@ -4531,19 +4540,80 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
       hist.full.version++;
     }
 
-    function startJob(e, P) {
+    // What the rasteriser knows about each pixel without tracing anything: the paint under it,
+    // which object it is and which way its surface faces. The smoothing is steered by these.
+    const guide = () => kit.picture(d, { scene: { cam: camOf() }, tex: 'correct', filter: 'bilinear', light: 'off' });
+
+    // One sweep along rows (step 1) or columns (step 96): each pixel's light becomes the weighted
+    // mean of its neighbours on the same object whose surface faces nearly the same way.
+    function sweep(src, dst, step, G) {
+      const O = G.obj, Nn = G.normal;
+      let count = 0;
+      for (let y = 0; y < 72; y++) for (let x = 0; x < 96; x++) {
+        const i = y * 96 + x, o = O[i];
+        if (!o) continue;
+        const nx = Nn[3 * i], ny = Nn[3 * i + 1], nz = Nn[3 * i + 2];
+        let r = 0, g = 0, b = 0, sum = 0;
+        for (let t = -REACH; t <= REACH; t++) {
+          const p = (step === 1 ? x : y) + t;
+          if (p < 0 || p >= (step === 1 ? 96 : 72)) continue;
+          const j = i + t * step;
+          if (O[j] !== o) continue;
+          const dot = nx * Nn[3 * j] + ny * Nn[3 * j + 1] + nz * Nn[3 * j + 2];
+          if (dot < SAME) continue;
+          const w = FALL[t < 0 ? -t : t] * dot * dot;
+          r += src[3 * j] * w; g += src[3 * j + 1] * w; b += src[3 * j + 2] * w; sum += w;
+          count++;
+        }
+        dst[3 * i] = r / sum; dst[3 * i + 1] = g / sum; dst[3 * i + 2] = b / sum;
+      }
+      return count;
+    }
+    // The kept picture is divided by the paint, so that only its light is smoothed and the
+    // textures stay sharp; then the paint is put back. Returns the sums it took.
+    function smooth(G) {
+      const H = hist.full.color, A = G.paint, O = G.obj, out = clean.color;
+      for (let i = 0; i < ALL; i++) {
+        if (!O[i]) continue;
+        for (let k = 0; k < 3; k++) lightA[3 * i + k] = H[3 * i + k] / Math.max(A[3 * i + k], FLOOR);
+      }
+      const count = sweep(lightA, lightB, 1, G) + sweep(lightB, lightA, 96, G);
+      for (let i = 0; i < ALL; i++) for (let k = 0; k < 3; k++) {
+        out[3 * i + k] = O[i] ? lightA[3 * i + k] * Math.max(A[3 * i + k], FLOOR) : H[3 * i + k];
+      }
+      clean.version++;
+      return count;
+    }
+    // the same count without the smoothing, for the bills of ways that are not on the screen
+    function sumsOfSmoothing(G) {
+      const O = G.obj, Nn = G.normal;
+      let count = 0;
+      for (const step of [1, 96]) for (let y = 0; y < 72; y++) for (let x = 0; x < 96; x++) {
+        const i = y * 96 + x, o = O[i];
+        if (!o) continue;
+        for (let t = -REACH; t <= REACH; t++) {
+          const p = (step === 1 ? x : y) + t;
+          if (p < 0 || p >= (step === 1 ? 96 : 72)) continue;
+          const j = i + t * step;
+          if (O[j] === o && Nn[3 * i] * Nn[3 * j] + Nn[3 * i + 1] * Nn[3 * j + 1] + Nn[3 * i + 2] * Nn[3 * j + 2] >= SAME) count++;
+        }
+      }
+      return count;
+    }
+
+    function startJob(kind, P) {
       const v = view(), key = JSON.stringify(camOf());
-      if (e === 4) {
+      if (kind === 'rays') {
         job = kit.trace({ paints: P, scene: v, mode: 'mirror', into: spare });
         return;
       }
-      if (jobEra !== e) {
-        // entering a path way: its kept picture is the picture on the screen
-        if (pic !== hist.full) { hist.full.color.set(pic.color); hist.full.version++; }
+      if (jobKind !== kind) {
+        // entering a path way from a rasterised or ray picture: that picture is its kept picture
+        if (pic !== hist.full && pic !== clean) { hist.full.color.set(pic.color); hist.full.version++; }
         since = 16;
       } else if (key !== jobView) since = 0;
       jobView = key;
-      const quarter = e === 6, n = quarter ? Math.floor(since / 4) : since;
+      const quarter = kind === 'quarter', n = quarter ? Math.floor(since / 4) : since;
       if (!quarter) {
         job = kit.trace({ paints: P, scene: v, mode: 'path', spp: 1, seed: seed++, clamp: 1, onRow: (y, j) => blendRow(y, j, false) });
       } else {
@@ -4563,17 +4633,26 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
       if (P.key !== paintKey) { paintKey = P.key; recolour(); ladder = null; }
       const e = era.value;
 
+      const kind = KIND[e];
       if (!ladder) {
         ladder = [
-          { e: 4, job: kit.trace({ paints: P, mode: 'mirror' }) },
-          { e: 5, job: kit.trace({ paints: P, mode: 'path', spp: 1, seed: 99 }) },
-          { e: 6, job: kit.trace({ paints: P, mode: 'path', spp: 1, seed: 99, w: 48, h: 36, jitter: QUARTER[0] }) },
+          { kind: 'rays', job: kit.trace({ paints: P, mode: 'mirror' }) },
+          { kind: 'paths', job: kit.trace({ paints: P, mode: 'path', spp: 1, seed: 99 }) },
+          { kind: 'quarter', job: kit.trace({ paints: P, mode: 'path', spp: 1, seed: 99, w: 48, h: 36, jitter: QUARTER[0] }) },
         ];
+        ladder.smoothing = sumsOfSmoothing(kit.picture(d, { tex: 'correct', filter: 'bilinear', light: 'off' }));
         for (let k = 0; k < 4; k++) bills[k] = kit.picture(d, RASTER[k]).counts.bill;
       }
+      // the bills of the traced ways that are not on the screen, at the starting view
       const todo = ladder.find((x) => !x.job.done);
-      if (todo && todo.e !== e) { if (todo.job.step(BACKGROUND) && bills[todo.e] == null) bills[todo.e] = todo.job.counts.bill; }
-      else if (todo) todo.job.done = true;
+      if (todo && todo.kind !== kind) {
+        if (todo.job.step(BACKGROUND)) {
+          const b = todo.job.counts.bill;
+          if (todo.kind === 'rays' && bills[4] == null) bills[4] = b;
+          if (todo.kind === 'paths') { if (bills[5] == null) bills[5] = b; if (bills[6] == null) bills[6] = b + ladder.smoothing; }
+          if (todo.kind === 'quarter' && bills[7] == null) bills[7] = b + ladder.smoothing;
+        }
+      } else if (todo) todo.job.done = true;
 
       if (e <= 3) {
         pic = kit.picture(d, Object.assign({ scene: view() }, RASTER[e]));
@@ -4583,17 +4662,21 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
       }
       // nothing on the screen yet: start from the rasterised picture, never from an empty one
       if (!pic) pic = kit.picture(d, Object.assign({ scene: view() }, RASTER[3]));
-      if (!job || jobEra !== e) { startJob(e, P); jobEra = e; }
-      if (e > 4) pic = hist.full;
-      if (job.step(BUDGET)) {
-        bills[e] = job.counts.bill;
-        if (e === 4) { spare = front; front = job; pic = front; }
-        startJob(e, P);
+      if (!job || jobKind !== kind) { startJob(kind, P); jobKind = kind; }
+      const done = job.step(BUDGET), bill = done ? job.counts.bill : 0;
+      if (kind === 'rays') {
+        if (done) { bills[4] = bill; spare = front; front = job; pic = front; }
+      } else {
+        if (e === 5) pic = hist.full;
+        else { taps = smooth(guide()); pic = clean; }
+        if (done && kind === 'paths') { bills[5] = bill; bills[6] = bill + (e === 6 ? taps : ladder.smoothing); }
+        if (done && kind === 'quarter') bills[7] = bill + taps;
       }
+      if (done) startJob(kind, P);
     });
 
     // Wide: the screen, and beside it the bills and the pixels meter. Narrow: the screen as large
-    // as the stage allows, the seven bars in a slim column beside it, the two numbers beneath.
+    // as the stage allows, the bars in a slim column beside it, the two numbers beneath.
     function layout() {
       const p = kit.pad(d);
       if (!kit.narrow(d)) {
@@ -4612,7 +4695,7 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
 
     const fmt = (v) => (v >= 1e6 ? num(v / 1e6) + tr(' million', ' млн') : num(v));
     function bars(g, X, Y, base, bw, e) {
-      for (let k = 0; k < 7; k++) {
+      for (let k = 0; k < WAYS; k++) {
         const x = X(k) - bw / 2, b = bills[k];
         if (b == null) { kit.box(g, d, { x, y: base - 16, w: bw, h: 16, r: Math.min(3, bw / 2) }, { ghost: true }); continue; }
         const top = Y(b);
@@ -4624,7 +4707,7 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
     d.draw((g) => {
       const L = layout(), e = era.value;
       kit.screen(g, d, L.screen, { pic, id: 'hero', shadow: !L.narrow });
-      const worked = e === 6 ? ALL / 4 : ALL;
+      const worked = e === LAST ? ALL / 4 : ALL;
       const pixels = {
         label: tr('Pixels worked out', 'Рассчитано пикселей'),
         text: num(worked) + tr(' of ', ' из ') + num(ALL),
@@ -4633,10 +4716,10 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
       d.note(NOTES()[e]);
 
       if (L.narrow) {
-        // the seven bills as a slim log column: hairlines at 100, 10,000 and a million
+        // the bills as a slim log column: hairlines at 100, 10,000 and a million
         const C = L.col, top = C.y + 4, base = C.y + C.h - 14;
         const Y = (v) => base - (Math.log10(v) - 1) / (Math.log10(2e6) - 1) * (base - top);
-        const step = C.w / 7, X = (k) => C.x + (k + 0.5) * step;
+        const step = C.w / WAYS, X = (k) => C.x + (k + 0.5) * step;
         g.strokeStyle = d.color('grid');
         g.lineWidth = 1;
         g.beginPath();
@@ -4660,10 +4743,10 @@ figure.demo { margin: 2.6rem calc(50% - min(430px, 50vw - 16px)); }
       if (bills[e] != null) kit.label(g, d, num(bills[e]), C.x, y + 16, { size: 14, weight: 600, color: 'ink', max: C.w });
       y += 26;
       const ax = kit.axis(g, d, { x: C.x, y, w: C.w, h: C.y + C.h - y }, {
-        x: { min: -0.6, max: 6.6, ticks: [], hide: true },
+        x: { min: -0.6, max: LAST + 0.6, ticks: [], hide: true },
         y: { min: 10, max: 2e6, log: true, ticks: [100, 1e4, 1e6], format: fmt },
       });
-      bars(g, ax.X, ax.Y, ax.Y(10), clamp(ax.plot.w / 7.2 * 0.62, 5, 22), e);
+      bars(g, ax.X, ax.Y, ax.Y(10), clamp(ax.plot.w / (WAYS + 0.2) * 0.62, 5, 22), e);
 
       // how many pixels were worked out this frame; the lighter rest came from earlier frames
       kit.meter(g, d, L.meter, pixels);
